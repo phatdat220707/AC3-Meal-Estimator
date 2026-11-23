@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AC3 Meal Estimator · Group 16</title>
+<style>
+  :root { color-scheme: light; --ink:#22332e; --muted:#4e6259; --line:#c8d3cc; --paper:#fff; --accent:#235b48; --wash:#eaf3eb; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:#f4f6f2; color:var(--ink); font:16px/1.5 system-ui,sans-serif; }
+  main { width:min(1060px, calc(100% - 32px)); margin:36px auto 52px; }
+  header { margin-bottom:24px; }
+  h1 { margin:0; font-size:clamp(2rem,5vw,3.5rem); letter-spacing:-.045em; line-height:1.08; }
+  h2 { font-size:1.2rem; margin:0 0 12px; }
+  p { margin:8px 0; }
+  .muted, small { color:var(--muted); }
+  .grid { display:grid; grid-template-columns:minmax(0, .9fr) minmax(0, 1.1fr); gap:16px; align-items:start; }
+  .card { background:var(--paper); padding:20px; border:1px solid var(--line); border-radius:16px; }
+  .photo { display:grid; place-items:center; min-height:180px; background:var(--wash); border-radius:10px; padding:8px; text-align:center; }
+  .photo img { display:block; width:100%; max-height:420px; object-fit:contain; }
+  [hidden] { display:none !important; }
+  button, input { font:inherit; }
+  button, input::file-selector-button { padding:8px 13px; border-radius:8px; border:1px solid var(--accent); color:var(--accent); background:white; cursor:pointer; }
+  button.primary { background:var(--accent); color:white; }
+  button:disabled { opacity:.53; cursor:default; }
+  :focus-visible { outline:3px solid #56701f; outline-offset:3px; }
+  .actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; align-items:center; }
+  fieldset { margin:0; padding:0; border:0; min-width:0; }
+  legend { padding:0; font-weight:650; }
+  .choices { display:flex; flex-wrap:wrap; gap:6px; margin:8px 0 14px; }
+  .choice { display:flex; align-items:center; gap:5px; border:1px solid var(--line); padding:4px 8px; border-radius:8px; }
+  input[type=checkbox] { accent-color:var(--accent); }
+  input[type=number] { width:8ch; border:1px solid var(--line); border-radius:6px; padding:4px; color:var(--ink); }
+  #mass { width:12ch; }
+  .assume { display:flex; align-items:baseline; gap:8px; margin-top:8px; }
+  .metrics { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:16px 0 12px; }
+  .metric { padding:10px; background:var(--wash); border-radius:8px; }
+  .metric output { display:block; font-size:1.4rem; font-weight:700; }
+  .scroll { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-size:.88rem; }
+  th, td { padding:7px 5px; text-align:right; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th:first-child, td:first-child { text-align:left; }
+  details { margin-top:12px; }
+  summary { cursor:pointer; color:var(--accent); }
+  .foot { font-size:.88rem; margin-top:14px; }
+  .status { min-height:1.5em; }
+  @media(max-width:720px) { .grid { grid-template-columns:1fr; } main { margin-top:22px; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <p class="muted">CityU · AC3 Canteen · Group 16</p>
+    <h1>AC3 Meal Estimator</h1>
+    <p>Estimate calories for the food on your main plate. Rice, soup and drinks are separate.</p>
+  </header>
+  <div class="grid">
+    <section class="card" aria-labelledby="photo-title">
+      <h2 id="photo-title">Plate photo</h2>
+      <div class="photo">
+        <span id="placeholder" class="muted">Choose a photo showing the main plate.</span>
+        <img id="preview" alt="Uploaded main plate" hidden>
+      </div>
+      <div class="actions">
+        <input id="photo" type="file" accept="image/*" aria-label="Choose plate photo" style="max-width:100%">
+        <button id="analyze" class="primary" type="button" disabled>Suggest dishes</button>
+      </div>
+      <p id="status" class="status muted" role="status">The first AI run downloads the model. Photos stay in this browser.</p>
+      <p id="suggestions" hidden></p>
+    </section>
+    <section class="card" aria-labelledby="estimate-title">
+      <h2 id="estimate-title">Portion and calories</h2>
+      <fieldset>
+        <legend>Dishes on the plate</legend>
+        <div id="choices" class="choices"></div>
+      </fieldset>
+      <label for="mass"><strong>Scale reading (g)</strong> <small>optional</small></label>
+      <input id="mass" type="number" min="1" max="5000" step="any" inputmode="decimal">
+      <label class="assume"><input id="net" type="checkbox"> <span>Treat this reading as food only, without the plate.</span></label>
+      <div class="metrics" aria-live="polite">
+        <div class="metric">Default portions<output id="base">—</output></div>
+        <div class="metric">With scale reading<output id="adjusted">—</output></div>
+      </div>
+      <p id="change" class="muted" role="status"></p>
+      <div class="scroll">
+        <table id="breakdown" hidden>
+          <thead><tr><th scope="col">Dish</th><th scope="col">Default g</th><th scope="col">Adjusted g</th><th scope="col">Default kcal</th><th scope="col">Adjusted kcal</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <details>
+        <summary>Edit portion and calorie values</summary>
+        <p class="foot muted">Starting values are illustrative. Replace them with your measured portions and referenced kcal/100 g before interpreting the calorie totals.</p>
+        <div class="scroll"><table>
+          <thead><tr><th scope="col">Dish</th><th scope="col">Default g</th><th scope="col">kcal/100 g</th></tr></thead>
+          <tbody id="settings"></tbody>
+        </table></div>
+      </details>
+      <div class="actions"><button id="export" type="button" disabled>Download results CSV</button></div>
+      <p class="foot muted">The starting portion and calorie values are illustrative.</p>
+      <p class="foot muted">The adjustment keeps each dish’s share of the plate the same. A total weight cannot show how much of each dish was served.</p>
+    </section>
+  </div>
+</main>
+<script type="module">
+const dishes = [
+  { id: 'chicken', name: 'Cooked chicken', prompt: 'cooked chicken pieces', grams: 90, density: 190 },
+  { id: 'fish', name: 'Cooked fish', prompt: 'cooked fish fillet pieces', grams: 80, density: 150 },
+  { id: 'tofu', name: 'Fried tofu', prompt: 'golden fried tofu cubes', grams: 65, density: 240 },
+  { id: 'greens', name: 'Leafy greens', prompt: 'cooked leafy green vegetables', grams: 65, density: 65 },
+  { id: 'noodles', name: 'Glass noodles', prompt: 'cooked translucent glass noodles', grams: 95, density: 140 },
+  { id: 'other', name: 'Other / unknown', grams: 75, density: null },
+];
+const excluded = ['plain white rice in a bowl', 'soup in a bowl', 'an empty plate or a tabletop', 'mixed food with no clear dish'];
+const get = id => document.getElementById(id);
+const state = { photoUrl: '', revision: 0, suggestions: [], result: null, running: false, edited: false };
+let modelPromise;
+
+function estimate(items, netMass) {
+  const baseMass = items.reduce((sum, item) => sum + item.grams, 0);
+  const factor = netMass === null || baseMass === 0 ? null : netMass / baseMass;
+  const rows = items.map(item => {
+    const kcal = item.density === null ? null : item.grams * item.density / 100;
+    return { ...item, kcal, adjustedGrams: factor === null ? null : item.grams * factor,
+      adjustedKcal: kcal === null || factor === null ? null : kcal * factor };
+  });
+  const knownKcal = rows.reduce((sum, row) => sum + (row.kcal ?? 0), 0);
+  const hasKnown = rows.some(row => row.kcal !== null);
+  return { rows, hasUnknown: rows.some(row => row.kcal === null),
+    base: hasKnown ? knownKcal : null, adjusted: hasKnown && factor !== null ? knownKcal * factor : null };
+}
+
+const checkboxes = new Map();
+const inputs = new Map();
+function cell(row, value) {
+  const td = row.insertCell();
+  if (value instanceof Node) td.append(value);
+  else td.textContent = value;
+}
+function numericInput(label, min, max, value) {
+  const input = document.createElement('input');
+  input.type = 'number';
+  input.min = min;
+  input.max = max;
+  input.step = 'any';
+  input.value = value ?? '';
+  input.setAttribute('aria-label', label);
+  input.addEventListener('input', render);
+  return input;
+}
+for (const dish of dishes) {
+  const label = document.createElement('label');
+  label.className = 'choice';
+  const input = document.createElement('input');
+  input.type = 'checkbox';
+  input.addEventListener('change', () => { state.edited = true; render(); });
+  label.append(input, dish.name);
+  get('choices').append(label);
+  checkboxes.set(dish.id, input);
+  const row = get('settings').insertRow();
+  const grams = numericInput(`${dish.name}: default grams`, 1, 5000, dish.grams);
+  const density = numericInput(`${dish.name}: kcal per 100 g`, 0, 900, dish.density);
+  cell(row, dish.name);
+  cell(row, grams);
+  cell(row, density);
+  inputs.set(dish.id, { grams, density });
+}
+const formatted = new Intl.NumberFormat('en', { maximumFractionDigits: 1 });
+const value = number => number === null ? '—' : formatted.format(number);
+const kcal = number => number === null ? '—' : `${Math.round(number)} kcal`;
+function render() {
+  const selected = dishes.filter(dish => checkboxes.get(dish.id).checked);
+  const invalid = selected.some(dish => {
+    const { grams, density } = inputs.get(dish.id);
+    return !grams.value || !grams.validity.valid || !density.validity.valid;
+  });
+  const rawMass = get('mass');
+  const badMass = rawMass.validity.badInput || (rawMass.value !== '' && !rawMass.validity.valid);
+  const netMass = rawMass.value && !badMass && get('net').checked ? rawMass.valueAsNumber : null;
+  const items = invalid ? [] : selected.map(dish => {
+    const { grams, density } = inputs.get(dish.id);
+    return { id: dish.id, name: dish.name, grams: grams.valueAsNumber,
+      density: density.value === '' ? null : density.valueAsNumber };
+  });
+  const result = estimate(items, netMass);
+  state.result = { ...result, netMass };
+  get('base').textContent = kcal(result.base);
+  get('adjusted').textContent = kcal(result.adjusted);
+  get('export').disabled = !items.length || badMass;
+  get('breakdown').hidden = !items.length;
+  const body = get('rows');
+  body.replaceChildren();
+  for (const row of result.rows) {
+    const tr = body.insertRow();
+    [row.name, value(row.grams), value(row.adjustedGrams), value(row.kcal), value(row.adjustedKcal)].forEach(entry => cell(tr, entry));
+  }
+  const notes = [];
+  if (invalid) notes.push('Check the portion and calorie values for the selected dishes.');
+  else if (!selected.length) notes.push('Select the dishes you want to estimate.');
+  if (badMass) notes.push('Enter a scale reading from 1 to 5,000 g.');
+  else if (rawMass.value && netMass === null) notes.push('The scale reading is on hold until you treat it as food only.');
+  if (result.hasUnknown) notes.push('The calorie totals cover only dishes with a kcal/100 g value.');
+  if (result.adjusted !== null) {
+    const difference = Math.round(result.adjusted) - Math.round(result.base);
+    notes.push(`Change from default: ${difference > 0 ? '+' : ''}${difference} kcal.`);
+  }
+  get('change').textContent = notes.join(' ');
+}
+get('mass').addEventListener('input', render);
+get('net').addEventListener('change', render);
+render();
+
+function updateAnalyzeButton() {
+  get('analyze').disabled = state.running || !state.photoUrl || get('preview').hidden;
+}
+get('photo').addEventListener('change', async event => {
+  const file = event.target.files[0];
+  if (!file) return;
+  const revision = ++state.revision;
+  if (state.photoUrl) URL.revokeObjectURL(state.photoUrl);
+  state.photoUrl = URL.createObjectURL(file);
+  state.suggestions = [];
+  state.edited = false;
+  get('suggestions').hidden = true;
+  for (const input of checkboxes.values()) input.checked = false;
+  get('mass').value = '';
+  get('net').checked = false;
+  const preview = get('preview');
+  preview.hidden = true;
+  get('placeholder').hidden = false;
+  updateAnalyzeButton();
+  render();
+  preview.src = state.photoUrl;
+  try {
+    await preview.decode();
+    if (revision !== state.revision) return;
+    preview.hidden = false;
+    get('placeholder').hidden = true;
+    get('status').textContent = 'Photo ready. Suggest dishes or select them yourself.';
+  } catch {
+    if (revision !== state.revision) return;
+    get('status').textContent = 'This photo could not be opened. Try a JPG or PNG.';
+  }
+  updateAnalyzeButton();
+});
+
+function loadModel(status) {
+  if (!modelPromise) {
+    modelPromise = import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.2')
+      .then(async ({ env, pipeline, RawImage }) => {
+        env.allowLocalModels = false;
+        env.backends.onnx.wasm.numThreads = 1;
+        const classifier = await pipeline('zero-shot-image-classification', 'Xenova/clip-vit-base-patch32', {
+          device: 'wasm', dtype: 'q8',
+          progress_callback: event => {
+            if (event.status === 'progress' && Number.isFinite(event.progress)) {
+              status(`Downloading the vision model · ${Math.floor(event.progress)}% of the current file`);
+            }
+          },
+        });
+        return { classifier, RawImage };
+      }).catch(error => {
+        modelPromise = undefined;
+        throw error;
+      });
+  }
+  return modelPromise;
+}
+
+function views(image, RawImage) {
+  const crops = [[0,0,1,1], [0,0,.62,.62], [.38,0,.62,.62], [0,.38,.62,.62], [.38,.38,.62,.62]];
+  return crops.map(([x,y,w,h]) => {
+    const sourceWidth = Math.max(1, Math.floor(w * image.naturalWidth));
+    const sourceHeight = Math.max(1, Math.floor(h * image.naturalHeight));
+    const ratio = Math.min(1, 448 / Math.max(sourceWidth, sourceHeight));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(sourceWidth * ratio));
+    canvas.height = Math.max(1, Math.round(sourceHeight * ratio));
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(image, Math.floor(x * image.naturalWidth), Math.floor(y * image.naturalHeight),
+      sourceWidth, sourceHeight, 0, 0, canvas.width, canvas.height);
+    const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    return new RawImage(pixels.data, canvas.width, canvas.height, 4);
+  });
+}
+
+get('analyze').addEventListener('click', async () => {
+  if (state.running || get('preview').hidden) return;
+  state.running = true;
+  const revision = state.revision;
+  const message = text => { if (revision === state.revision) get('status').textContent = text; };
+  updateAnalyzeButton();
+  message('Loading the vision model…');
+  try {
+    const { classifier, RawImage } = await loadModel(message);
+    if (revision !== state.revision) return;
+    const candidates = dishes.filter(dish => dish.prompt);
+    const labels = [...candidates.map(dish => dish.prompt), ...excluded];
+    const crops = views(get('preview'), RawImage);
+    const found = new Set();
+    for (const [index, crop] of crops.entries()) {
+      if (revision !== state.revision) return;
+      message(`Checking the photo · view ${index + 1} of ${crops.length}`);
+      const [top, second] = await classifier(crop, labels, { hypothesis_template: 'a photo of {}' });
+      if (top && second && top.score >= 0.30 && top.score - second.score >= 0.08) {
+        const dish = candidates.find(candidate => candidate.prompt === top.label);
+        if (dish) found.add(dish.id);
+      }
+    }
+    if (revision !== state.revision) return;
+    state.suggestions = [...found];
+    if (!state.edited) {
+      for (const [id, input] of checkboxes) input.checked = found.has(id);
+    }
+    const suggestions = get('suggestions');
+    suggestions.hidden = false;
+    suggestions.textContent = found.size
+      ? `AI suggestions: ${candidates.filter(dish => found.has(dish.id)).map(dish => dish.name).join(', ')}.`
+      : 'AI suggestions: none. Select the dishes you can identify.';
+    message('Check the suggestions against the photo before using the estimate.');
+    render();
+  } catch (error) {
+    console.error('Vision inference failed.', error);
+    message('AI could not run. Check your connection and retry, or select the dishes yourself.');
+  } finally {
+    state.running = false;
+    updateAnalyzeButton();
+  }
+});
+
+const csvCell = value => '"' + String(value ?? '').replaceAll('"', '""') + '"';
+get('export').addEventListener('click', () => {
+  const { rows, netMass } = state.result;
+  const fixed = number => number === null ? '' : Number(number.toFixed(2));
+  const table = [
+    ['Dish', 'Suggested by AI', 'Selected', 'Default grams', 'Entered scale grams',
+      'Treated as food-only', 'Adjusted grams', 'kcal per 100 g', 'Default kcal', 'Adjusted kcal', 'Calorie inputs status'],
+  ];
+  const ids = new Set([...rows.map(row => row.id), ...state.suggestions]);
+  for (const id of ids) {
+    const dish = dishes.find(dish => dish.id === id);
+    const row = rows.find(row => row.id === id);
+    table.push([dish.name, state.suggestions.includes(id) ? 'Yes' : 'No', row ? 'Yes' : 'No',
+      row?.grams, get('mass').value, netMass === null ? 'No' : 'Yes',
+      row && fixed(row.adjustedGrams), row?.density, row && fixed(row.kcal),
+      row && fixed(row.adjustedKcal), 'Verify sources before interpreting']);
+  }
+  const file = new Blob([table.map(row => row.map(csvCell).join(',')).join('\r\n') + '\r\n'], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(file);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'AC3_plate_results.csv';
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+});
+</script>
+</body>
+</html>

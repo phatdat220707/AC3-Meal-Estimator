@@ -1,0 +1,10 @@
+plate_id,capture_session,billed_mass_g,tare_status,mass_evidence,photo_notes,manual_dish_labels,ai_suggestions_before_edits,default_kcal,scale_adjusted_kcal,reference_kcal
+AC3-01,1,288,Unverified,Scale photo,Two views of one plate,,,,,
+AC3-02,3,427.7,Unverified,Corrected group record,Separate rice bowl outside project scope,,,,,
+AC3-03,4,269,Unverified,Scale photo,Plate photo and scale photo,,,,,
+AC3-04,5,279,Unverified,Scale photo,Plate photographed on scale,,,,,
+AC3-05,5,318,Unverified,Scale photo,Separate plate from 279 g assumed; near-duplicate plate views,,,,,
+AC3-06,6,372,Unverified,Scale photo,Plate photo and scale photo,,,,,
+AC3-07,,354,Unverified,Scale photo,Plate photo and scale photo,,,,,
+AC3-08,,,Not available,No weight recorded,Plate photo; separate rice bowl outside scope,,,,,
+AC3-09,,,Not available,No weight recorded,Plate photo; separate rice bowl outside scope,,,,,
