@@ -55,7 +55,7 @@
   <header>
     <p class="muted">CityU · AC3 Canteen · Group 16</p>
     <h1>AC3 Meal Estimator</h1>
-    <p>Estimate calories for the food on your main plate. Rice, soup and drinks are separate.</p>
+    <p>Estimate calories for your main plate. Leave out any rice, soup or drinks served separately.</p>
   </header>
   <div class="grid">
     <section class="card" aria-labelledby="photo-title">
@@ -71,7 +71,7 @@
       </div>
       <details id="crop-editor" hidden>
         <summary>Crop to plate</summary>
-        <p class="foot muted">Trim the edges until the plate fills the preview, then suggest dishes again.</p>
+        <p class="foot muted">Trim the edges around the plate, then click Suggest dishes again.</p>
         <div class="crop-controls">
           <label>Top <input id="crop-top" type="range" min="0" max="40" value="0"></label>
           <label>Bottom <input id="crop-bottom" type="range" min="0" max="40" value="0"></label>
@@ -80,7 +80,7 @@
         </div>
         <button id="reset-crop" type="button">Use original photo</button>
       </details>
-      <p id="status" class="status muted" role="status">The first AI run downloads the model. Photos stay in this browser.</p>
+      <p id="status" class="status muted" role="status">The model downloads on first use. Your photo stays in this browser.</p>
       <p id="suggestions" hidden></p>
     </section>
     <section class="card" aria-labelledby="estimate-title">
@@ -118,7 +118,7 @@
       <label id="confirm-field" hidden><input id="complete" type="checkbox"> The selected dishes cover all the food on the plate.</label>
       <details>
         <summary>Edit portion and calorie values</summary>
-        <p class="foot muted">Starting values are illustrative. Replace them with your measured portions and referenced kcal/100 g before interpreting the calorie totals.</p>
+        <p class="foot muted">These are sample values. If you have a measured portion and a calorie reference, enter them here.</p>
         <div class="scroll"><table>
           <thead><tr><th scope="col">Dish</th><th scope="col">Default g</th><th scope="col">kcal/100 g</th></tr></thead>
           <tbody id="settings"></tbody>
@@ -126,7 +126,7 @@
       </details>
       <div class="actions"><button id="export" type="button" disabled>Download results CSV</button></div>
       <p class="foot muted">The starting portion and calorie values are illustrative.</p>
-      <p class="foot muted">Use the scale reading to check how much weight is accounted for. Enter each dish's weight to calculate its calories.</p>
+      <p class="foot muted">Enter the weight of each dish to estimate its calories. The scale reading shows how many grams are still unassigned.</p>
     </section>
   </div>
 </main>
